@@ -1,0 +1,15 @@
+{
+  "name": "pal-contracts",
+  "scripts": {
+    "test": "forge test",
+    "test:unit": "forge test --match-contract UnitTest",
+    "test:integration": "forge test --match-contract IntegrationTest",
+    "test:fuzz": "forge test --match-contract FuzzTest",
+    "test:audit": "forge test --match-contract AuditTest",
+    "test:gas": "forge test --gas-report",
+    "build": "forge build",
+    "deploy:sepolia": "forge script script/PALDeployScript.sol:DeployBaseSepolia --rpc-url $BASE_SEPOLIA_RPC --broadcast --verify -vvvv",
+    "deploy:mainnet": "forge script script/PALDeployScript.sol:DeployBaseMainnet --rpc-url $BASE_MAINNET_RPC --broadcast --verify -vvvv",
+    "verify": "forge verify-contract --chain-id 84532 --verifier etherscan --etherscan-api-key $ETHERSCAN_API_KEY"
+  }
+}

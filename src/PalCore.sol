@@ -1,174 +1,274 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "./PalStorage.sol";
-import "./PalGovernance.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import {IPAL} from "./interfaces/IPal.sol";
+import {BusinessAccount} from "./BusinessAccount.sol";
+import {TransactionManager} from "./TransactionManager.sol";
+import {ProjectTracker} from "./ProjectTracker.sol";
 
 /**
- * @title PAL: Agentic AI Business Assistant - Core Contract
- * @notice Main business logic contract for PAL AI Assistant
- * @dev Handles business operations, decision-making, and integrations
+ * @title PAL Main Contract
+ * @notice Core contract for PAL business management system on Base
+ * @dev Manages business accounts, transactions, and project tracking
  */
-contract PALCore is PALGovernance {
-    using Strings for uint256;
-    
-    PALDataStorage public dataStorage;
+contract PalCore is IPAL {
+    // State variables
+    address public immutable teamWallet;
+    uint256 public businessCounter;
 
-    // Events
-    event BusinessRegistered(address indexed owner, uint256 businessId);
-    event SalesLogged(uint256 indexed businessId, uint256 amount, uint256 timestamp);
-    event ExpenseLogged(uint256 indexed businessId, uint256 amount, string category, uint256 timestamp);
-    event AlertTriggered(uint256 indexed businessId, string alertType, string message);
-    event RecommendationMade(uint256 indexed businessId, string recommendationType, string details);
+    // Mappings
+    mapping(address => BusinessAccount) public businessAccounts;
+    mapping(uint256 => address) public businessIdToOwner;
+    mapping(address => uint256) public ownerToBusinessId;
+
+    // Contract references
+    TransactionManager public transactionManager;
+    ProjectTracker public projectTracker;
 
     /**
-     * @dev Constructor initializes the data storage contract
-     * @param _dataStorageAddress Address of the PALDataStorage contract
+     * @dev Constructor sets the team wallet and deploys manager contracts
+     * @param _teamWallet Address of the team/admin wallet
      */
-    constructor(address _dataStorageAddress) {
-        dataStorage = PALDataStorage(_dataStorageAddress);
+    constructor(address _teamWallet) {
+        require(_teamWallet != address(0), "PAL: team wallet cannot be zero");
+        teamWallet = _teamWallet;
+
+        // Deploy manager contracts
+        transactionManager = new TransactionManager();
+        projectTracker = new ProjectTracker();
+
+        businessCounter = 1;
     }
 
-    
-
     /**
-     * @notice Register a new business with PAL
-     * @param _businessName Name of the business
-     * @param _industry Industry category
-     * @param _initialBalance Initial business balance
+     * @notice Creates a new business account for the caller
+     * @dev Each wallet can only have one business account
+     * @param _name Business name
+     * @param _businessType Type of business
      */
-    function registerBusiness(
-        string memory _businessName,
-        string memory _industry,
-        uint256 _initialBalance
-    ) external {
-        uint256 businessId = dataStorage.createBusiness(
-            msg.sender,
-            _businessName,
-            _industry,
-            _initialBalance
+    function createBusinessAccount(
+        string calldata _name,
+        string calldata _businessType
+    ) external override {
+        require(bytes(_name).length > 0, "PAL: business name required");
+        require(bytes(_businessType).length > 0, "PAL: business type required");
+        require(
+            address(businessAccounts[msg.sender]) == address(0),
+            "PAL: business already exists"
         );
-        
-        emit BusinessRegistered(msg.sender, businessId);
+        require(
+            ownerToBusinessId[msg.sender] == 0,
+            "PAL: business already exists"
+        );
+
+        // Create new business account
+        BusinessAccount newBusiness = new BusinessAccount(
+            businessCounter,
+            msg.sender,
+            _name,
+            _businessType
+        );
+
+        // Update mappings
+        businessAccounts[msg.sender] = newBusiness;
+        businessIdToOwner[businessCounter] = msg.sender;
+        ownerToBusinessId[msg.sender] = businessCounter;
+
+        emit BusinessAccountCreated(
+            businessCounter,
+            msg.sender,
+            _name,
+            _businessType,
+            block.timestamp
+        );
+
+        businessCounter++;
     }
 
     /**
-     * @notice Log a sale transaction
-     * @param _businessId ID of the business
-     * @param _amount Sale amount
-     * @param _productId Product/service ID (optional)
+     * @notice Records a business transaction
+     * @dev Can only be called by business owner
+     * @param _amount Transaction amount in wei
+     * @param _category Transaction category
+     * @param _description Transaction description
+     * @param _txType Type of transaction (Sale/Purchase/Expense)
      */
-    function logSale(
-        uint256 _businessId,
+    function recordTransaction(
         uint256 _amount,
-        string memory _productId
-    ) external onlyBusinessOwner(_businessId) {
-        dataStorage.recordSale(_businessId, _amount, _productId);
-        
-        // Check inventory and trigger alerts if needed
-        _checkInventoryLevels(_businessId);
-        
-        emit SalesLogged(_businessId, _amount, block.timestamp);
+        string calldata _category,
+        string calldata _description,
+        TransactionType _txType
+    ) external override {
+        BusinessAccount business = businessAccounts[msg.sender];
+        require(address(business) != address(0), "PAL: no business account");
+        require(_amount > 0, "PAL: amount must be positive");
+        require(bytes(_category).length > 0, "PAL: category required");
+
+        transactionManager.recordTransaction(
+            address(business),
+            _amount,
+            _category,
+            _description,
+            _txType
+        );
+
+        emit TransactionRecorded(
+            ownerToBusinessId[msg.sender],
+            _amount,
+            _category,
+            _description,
+            _txType,
+            block.timestamp
+        );
     }
 
     /**
-     * @notice Log an expense
-     * @param _businessId ID of the business
-     * @param _amount Expense amount
-     * @param _category Expense category
+     * @notice Adds a new project/client
+     * @dev Can only be called by business owner
+     * @param _clientName Name of the client
+     * @param _projectName Name of the project
+     * @param _amount Project amount
+     * @param _deadline Project deadline timestamp
      */
-    function logExpense(
-        uint256 _businessId,
+    function addProject(
+        string calldata _clientName,
+        string calldata _projectName,
         uint256 _amount,
-        string memory _category
-    ) external onlyBusinessOwner(_businessId) {
-        dataStorage.recordExpense(_businessId, _amount, _category);
-        
-        // Check cash flow and trigger alerts if needed
-        _checkCashFlow(_businessId);
-        
-        emit ExpenseLogged(_businessId, _amount, _category, block.timestamp);
-    }
+        uint256 _deadline
+    ) external override {
+        BusinessAccount business = businessAccounts[msg.sender];
+        require(address(business) != address(0), "PAL: no business account");
+        require(bytes(_clientName).length > 0, "PAL: client name required");
+        require(bytes(_projectName).length > 0, "PAL: project name required");
+        require(_amount > 0, "PAL: amount must be positive");
+        require(_deadline > block.timestamp, "PAL: deadline must be in future");
 
-    function _checkInventoryLevels(uint256 _businessId) internal {
-        uint256 currentInventory = dataStorage.getInventoryLevel(_businessId, "default");
-        uint256 threshold = dataStorage.getInventoryThreshold(_businessId, "default");
-        
-        if (currentInventory < threshold) {
-            string memory alertMessage = string(abi.encodePacked(
-                "Low inventory alert! Current: ",
-                currentInventory.toString(),
-                ", Threshold: ",
-                threshold.toString()
-            ));
-            
-            dataStorage.recordAlert(_businessId, "LOW_INVENTORY", alertMessage);
-            emit AlertTriggered(_businessId, "LOW_INVENTORY", alertMessage);
-        }
-    }
+        projectTracker.addProject(
+            address(business),
+            _clientName,
+            _projectName,
+            _amount,
+            _deadline
+        );
 
-    /**
-     * @dev Internal function to check cash flow status
-     * @param _businessId ID of the business
-     */
-    function _checkCashFlow(uint256 _businessId) internal {
-        // Implementation would analyze cash flow patterns
-        // This is a simplified version for demonstration
-        
-        uint256 balance = dataStorage.getBusinessBalance(_businessId);
-        uint256 avgExpenses = dataStorage.getAverageExpenses(_businessId, 30); // 30-day average
-        
-        if (balance < avgExpenses) {
-            string memory alertMessage = string(abi.encodePacked(
-                "Cash flow warning! Current balance: ",
-                Strings.toString(balance),
-                ", 30-day avg expenses: ",
-                Strings.toString(avgExpenses)
-            ));
-            
-            dataStorage.recordAlert(_businessId, "CASH_FLOW_WARNING", alertMessage);
-            emit AlertTriggered(_businessId, "CASH_FLOW_WARNING", alertMessage);
-        }
+        emit ProjectAdded(
+            ownerToBusinessId[msg.sender],
+            _clientName,
+            _projectName,
+            _amount,
+            _deadline,
+            ProjectStatus.Active
+        );
     }
 
     /**
-     * @notice Run a "What If" scenario analysis
-     * @param _businessId ID of the business
-     * @param _scenarioType Type of scenario ("PRICE_INCREASE", "NEW_EXPENSE", etc.)
-     * @param _parameters Parameters for the scenario
+     * @notice Updates project status
+     * @dev Can only be called by business owner
+     * @param _projectId Project ID to update
+     * @param _newStatus New project status
      */
-    function runScenario(
-        uint256 _businessId,
-        string memory _scenarioType,
-        uint256[] memory _parameters
-    ) external onlyBusinessOwner(_businessId) returns (string memory) {
-        // This would be more complex in a real implementation
-        if (keccak256(bytes(_scenarioType)) == keccak256(bytes("PRICE_INCREASE"))) {
-            require(_parameters.length >= 1, "Missing percentage parameter");
-            uint256 currentRevenue = dataStorage.getRevenue(_businessId, 30); // 30-day revenue
-            uint256 newRevenue = currentRevenue * (100 + _parameters[0]) / 100;
-            
-            string memory result = string(abi.encodePacked(
-                "Projected revenue change: ",
-                Strings.toString(_parameters[0]),
-                "% increase would result in ",
-                Strings.toString(newRevenue),
-                " vs current ",
-                Strings.toString(currentRevenue)
-            ));
-            
-            emit RecommendationMade(_businessId, "PRICE_ADJUSTMENT", result);
-            return result;
-        }
-        
-        revert("Unsupported scenario type");
+    function updateProjectStatus(
+        uint256 _projectId,
+        ProjectStatus _newStatus
+    ) external override {
+        BusinessAccount business = businessAccounts[msg.sender];
+        require(address(business) != address(0), "PAL: no business account");
+
+        projectTracker.updateProjectStatus(
+            address(business),
+            _projectId,
+            _newStatus
+        );
+
+        emit ProjectStatusUpdated(
+            ownerToBusinessId[msg.sender],
+            _projectId,
+            _newStatus,
+            block.timestamp
+        );
     }
 
-    // Additional business logic functions would be added here...
-    
-    modifier onlyBusinessOwner(uint256 _businessId) {
-        require(dataStorage.isBusinessOwner(_businessId, msg.sender), "Not business owner");
-        _;
+    /**
+     * @notice Gets business financial summary
+     * @param _businessId Business ID to query
+     * @return totalSales Total sales amount
+     * @return totalExpenses Total expenses amount
+     * @return netProfit Net profit amount
+     * @return currentBalance Current balance
+     */
+    function getFinancialSummary(
+        uint256 _businessId
+    )
+        external
+        view
+        override
+        returns (
+            uint256 totalSales,
+            uint256 totalExpenses,
+            int256 netProfit,
+            uint256 currentBalance
+        )
+    {
+        address businessOwner = businessIdToOwner[_businessId];
+        require(businessOwner != address(0), "PAL: invalid business ID");
+
+        BusinessAccount business = businessAccounts[businessOwner];
+        return transactionManager.getFinancialSummary(address(business));
+    }
+
+    /**
+     * @notice Gets business account info
+     * @param _businessId Business ID to query
+     * @return Business account information
+     */
+    function getBusinessInfo(
+        uint256 _businessId
+    ) external view override returns (BusinessAccountInfo memory) {
+        address businessOwner = businessIdToOwner[_businessId];
+        require(businessOwner != address(0), "PAL: invalid business ID");
+
+        BusinessAccount business = businessAccounts[businessOwner];
+        return business.getBusinessInfo();
+    }
+
+    /**
+     * @notice Gets all projects for a business
+     * @param _businessId Business ID to query
+     * @return Array of projects
+     */
+    function getProjects(
+        uint256 _businessId
+    ) external view override returns (Project[] memory) {
+        address businessOwner = businessIdToOwner[_businessId];
+        require(businessOwner != address(0), "PAL: invalid business ID");
+
+        BusinessAccount business = businessAccounts[businessOwner];
+        return projectTracker.getProjects(address(business));
+    }
+
+    /**
+     * @notice Gets overdue projects for a business
+     * @param _businessId Business ID to query
+     * @return Array of overdue projects
+     */
+    function getOverdueProjects(
+        uint256 _businessId
+    ) external view override returns (Project[] memory) {
+        address businessOwner = businessIdToOwner[_businessId];
+        require(businessOwner != address(0), "PAL: invalid business ID");
+
+        BusinessAccount business = businessAccounts[businessOwner];
+        return projectTracker.getOverdueProjects(address(business));
+    }
+
+    // Admin functions
+    /**
+     * @notice Emergency function to pause contract (team only)
+     * @dev Only callable by team wallet
+     */
+    function emergencyPause() external override {
+        require(msg.sender == teamWallet, "PAL: team only");
+        // Implementation for pausing functionality
+        emit EmergencyPaused(block.timestamp);
     }
 }

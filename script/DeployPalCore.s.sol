@@ -1,36 +1,61 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.19;
 
 import "forge-std/Script.sol";
-import "../src/PalStorage.sol";
 import "../src/PalCore.sol";
-import "../src/PalGovernance.sol";
 
-contract DeployPAL is Script {
-    function run() external {
-        // Load private key from environment variable
-        string memory privateKeyStr = vm.envString("AVALANCHE_PRIVATE_KEY");
-        uint256 deployerPrivateKey = vm.parseUint(privateKeyStr);
-        address deployer = vm.addr(deployerPrivateKey);
-        
-        console.log("Deploying with address:", deployer);
-        console.log("Balance:", deployer.balance);
+/**
+ * @title PAL Deployment Script
+ * @notice Scripts for deploying PAL contracts to Base networks
+ * @dev Handles both testnet and mainnet deployments
+ */
+contract PALDeployScript is Script {
+    function run() public virtual {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address teamWallet = vm.envAddress("TEAM_WALLET");
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy Data Storage
-        PALDataStorage dataStorage = new PALDataStorage();
-        console.log("PALDataStorage deployed at:", address(dataStorage));
-        
-        // Deploy PAL Core
-        PALCore palCore = new PALCore(address(dataStorage));
-        console.log("PALCore deployed at:", address(palCore));
-        
-        // Deploy Governance (upgradeable)
-        PALGovernance governance = new PALGovernance();
-        governance.initialize(); // Initialize with deployer as owner
-        console.log("PALGovernance deployed at:", address(governance));
-        
+        PalCore pal = new PalCore(teamWallet);
+
         vm.stopBroadcast();
+
+        // Log deployment details
+        console.log("PAL contract deployed at:", address(pal));
+        console.log("Transaction Manager:", address(pal.transactionManager()));
+        console.log("Project Tracker:", address(pal.projectTracker()));
+        console.log("Team Wallet:", pal.teamWallet());
+    }
+}
+
+/**
+ * @title Base Sepolia Deployment Script
+ * @notice Specific deployment script for Base Sepolia testnet
+ */
+contract DeployBaseSepolia is PALDeployScript {
+    function run() public override {
+        // Set up Base Sepolia specific parameters
+        uint256 deployNetwork = vm.envUint("DEPLOY_NETWORK");
+        require(
+            block.chainid == 84532 || deployNetwork == 84532,
+            "Wrong network for Base Sepolia"
+        );
+        PALDeployScript.run();
+    }
+}
+
+/**
+ * @title Base Mainnet Deployment Script
+ * @notice Specific deployment script for Base mainnet
+ */
+contract DeployBaseMainnet is PALDeployScript {
+    function run() public override {
+        // Set up Base Mainnet specific parameters
+        uint256 deployNetwork = vm.envUint("DEPLOY_NETWORK");
+        require(
+            block.chainid == 8453 || deployNetwork == 8453,
+            "Wrong network for Base Mainnet"
+        );
+        PALDeployScript.run();
     }
 }
