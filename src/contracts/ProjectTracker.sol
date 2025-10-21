@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.30;
 
-import {IProjectTracker} from "./interfaces/IProjectTracker.sol";
-import {IPAL} from "./interfaces/IPal.sol";
+import {IProjectTracker} from "@interface/IProjectTracker.sol";
+import {IPAL} from "@interface/IPal.sol";
 
 /**
+ * @author Nworah Chimzuruoke Gabriel (SAGGIO)
  * @title Project Tracker Contract
  * @notice Handles client and project management for businesses
  * @dev Stores project data, deadlines, and status information
@@ -96,7 +97,17 @@ contract ProjectTracker is IProjectTracker {
         );
 
         IPAL.Project storage project = businessProjects[_business][_projectId];
-        project.status = _newStatus;
+
+        // Auto-detect overdue when setting to Active
+        if (
+            _newStatus == IPAL.ProjectStatus.Active &&
+            block.timestamp > project.deadline
+        ) {
+            project.status = IPAL.ProjectStatus.Overdue;
+            emit ProjectOverdue(_business, _projectId, block.timestamp);
+        } else {
+            project.status = _newStatus;
+        }
 
         emit ProjectStatusUpdated(
             _business,
@@ -104,15 +115,6 @@ contract ProjectTracker is IProjectTracker {
             _newStatus,
             block.timestamp
         );
-
-        // Check for overdue status
-        if (
-            _newStatus == IPAL.ProjectStatus.Active &&
-            block.timestamp > project.deadline
-        ) {
-            project.status = IPAL.ProjectStatus.Overdue;
-            emit ProjectOverdue(_business, _projectId, block.timestamp);
-        }
     }
 
     /**
@@ -123,6 +125,10 @@ contract ProjectTracker is IProjectTracker {
     function getProjects(
         address _business
     ) external view override returns (IPAL.Project[] memory) {
+        require(
+            _business != address(0),
+            "ProjectTracker: business cannot be zero"
+        );
         return businessProjects[_business];
     }
 
@@ -134,18 +140,18 @@ contract ProjectTracker is IProjectTracker {
     function getOverdueProjects(
         address _business
     ) external view override returns (IPAL.Project[] memory) {
+        require(
+            _business != address(0),
+            "ProjectTracker: business cannot be zero"
+        );
+
         uint256 totalProjects = businessProjects[_business].length;
         uint256 overdueCount = 0;
 
         // First count overdue projects
         for (uint256 i = 0; i < totalProjects; i++) {
-            if (
-                businessProjects[_business][i].status ==
-                IPAL.ProjectStatus.Overdue ||
-                (businessProjects[_business][i].status ==
-                    IPAL.ProjectStatus.Active &&
-                    block.timestamp > businessProjects[_business][i].deadline)
-            ) {
+            IPAL.Project memory project = businessProjects[_business][i];
+            if (_isProjectOverdue(project)) {
                 overdueCount++;
             }
         }
@@ -159,16 +165,26 @@ contract ProjectTracker is IProjectTracker {
         // Fill result array
         for (uint256 i = 0; i < totalProjects; i++) {
             IPAL.Project memory project = businessProjects[_business][i];
-            if (
-                project.status == IPAL.ProjectStatus.Overdue ||
-                (project.status == IPAL.ProjectStatus.Active &&
-                    block.timestamp > project.deadline)
-            ) {
+            if (_isProjectOverdue(project)) {
                 overdueProjects[currentIndex] = project;
                 currentIndex++;
             }
         }
 
         return overdueProjects;
+    }
+
+    /**
+     * @dev Internal function to check if a project is overdue
+     * @param _project Project to check
+     * @return true if project is overdue
+     */
+    function _isProjectOverdue(
+        IPAL.Project memory _project
+    ) internal view returns (bool) {
+        return
+            _project.status == IPAL.ProjectStatus.Overdue ||
+            (_project.status == IPAL.ProjectStatus.Active &&
+                block.timestamp > _project.deadline);
     }
 }

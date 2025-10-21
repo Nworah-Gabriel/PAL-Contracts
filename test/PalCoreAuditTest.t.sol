@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.30;
 
-import "forge-std/Test.sol";
-import "../src/PalCore.sol";
+import "@forge-std/Test.sol";
+import "@contract/PalCore.sol";
 
 /**
+ * @author Nworah Chimzuruoke Gabriel (SAGGIO)
  * @title PAL Security Audit Tests
  * @notice Tests for common vulnerabilities and security issues
  * @dev Focuses on reentrancy, access control, overflow, etc.

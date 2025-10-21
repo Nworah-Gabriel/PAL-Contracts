@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.30;
 
-import "forge-std/Script.sol";
-import "../src/PalCore.sol";
+import "@forge-std/Script.sol";
+import "@contract/PalCore.sol";
 
 /**
+ * @author Nworah Chimzuruoke Gabriel (SAGGIO)
  * @title PAL Deployment Script
  * @notice Scripts for deploying PAL contracts to Base networks
  * @dev Handles both testnet and mainnet deployments

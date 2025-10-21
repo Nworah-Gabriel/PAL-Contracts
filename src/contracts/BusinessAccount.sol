@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {IBusinessAccount} from "./interfaces/IBusinessAccount.sol";
-import {IPAL} from "./interfaces/IPal.sol";
+import {IBusinessAccount} from "@interface/IBusinessAccount.sol";
+import {IPAL} from "@interface/IPal.sol";
 
 /**
+ * @author Nworah Chimzuruoke Gabriel (SAGGIO)
  * @title Business Account Contract
  * @notice Individual business account storage and management
  * @dev Each business gets its own contract instance

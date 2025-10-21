@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.30;
 
-import "forge-std/Test.sol";
-import "../src/PalCore.sol";
+import "@forge-std/Test.sol";
+import "@contract/PalCore.sol";
 
 /**
+ * @author Nworah Chimzuruoke Gabriel (SAGGIO)
  * @title PAL Integration Tests
  * @notice Tests interaction between different contract components
  * @dev Tests complete workflows and cross-contract functionality

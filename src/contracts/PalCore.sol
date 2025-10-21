@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {IPAL} from "./interfaces/IPal.sol";
-import {BusinessAccount} from "./BusinessAccount.sol";
-import {TransactionManager} from "./TransactionManager.sol";
-import {ProjectTracker} from "./ProjectTracker.sol";
+import {IPAL} from "@interface/IPal.sol";
+import {BusinessAccount} from "@contract/BusinessAccount.sol";
+import {TransactionManager} from "@contract/TransactionManager.sol";
+import {ProjectTracker} from "@contract/ProjectTracker.sol";
 
 /**
+ * @author Nworah Chimzuruoke Gabriel (SAGGIO)
  * @title PAL Main Contract
  * @notice Core contract for PAL business management system on Base
  * @dev Manages business accounts, transactions, and project tracking

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.30;
 
-import {IPAL} from "./IPal.sol";
+import {IPAL} from "@interface/IPal.sol";
 
 interface IBusinessAccount {
     event BusinessInfoUpdated(

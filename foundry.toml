@@ -1,3 +1,7 @@
+[fuzz]
+runs = 500
+max_test_rejects = 65536
+
 [profile.default]
 src = 'src'
 out = 'out'
@@ -6,13 +10,14 @@ test = 'test'
 solc = '0.8.30'
 optimizer_runs = 200
 
-[fuzz]
-runs = 500
-max_test_rejects = 65536
-
-remappings= [
-    '@openzeppelin=lib/openzeppelin-contracts-upgradable/contracts',
+remappings = [
+    '@openzeppelin=lib/openzeppelin-contracts-upgradeable/contracts',
     '@forge-std=lib/forge-std/src',
-    '@contract=src/contracts/',
+    '@contract=src/contracts',
+    '@interface=src/interfaces',
     '@test=test'
 ]
+
+
+
+

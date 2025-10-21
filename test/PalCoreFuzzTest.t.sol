@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.30;
 
-import "forge-std/Test.sol";
-import "../src/PalCore.sol";
+import "@forge-std/Test.sol";
+import "@contract/PalCore.sol";
 
 /**
+ * @author Nworah Chimzuruoke Gabriel (SAGGIO)
  * @title PAL Fuzz Tests
  * @notice Property-based testing for edge cases and security
  * @dev Uses fuzzing to test with random inputs and find vulnerabilities

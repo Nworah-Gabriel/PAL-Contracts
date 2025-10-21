@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.30;
 
-import {ITransactionManager} from "./interfaces/ITransactionManager.sol";
-import {IPAL} from "./interfaces/IPal.sol";
+import {ITransactionManager} from "@interface/ITransactionManager.sol";
+import {IPAL} from "@interface/IPal.sol";
 
 /**
+ * @author Nworah Chimzuruoke Gabriel (SAGGIO)
  * @title Transaction Manager Contract
  * @notice Handles all business transaction recording and financial calculations
  * @dev Manages sales, purchases, expenses and calculates financial metrics
