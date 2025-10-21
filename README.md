@@ -2,18 +2,6 @@
 
 A comprehensive on-chain business management system built on Base blockchain that enables businesses to track finances, manage projects, and automate financial insights.
 
-## 📋 Table of Contents
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Installation](#installation)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [Usage](#usage)
-- [API Reference](#api-reference)
-- [Security](#security)
-- [Contributing](#contributing)
-
 ## 🎯 Overview
 
 PAL is a decentralized business management platform that provides:
